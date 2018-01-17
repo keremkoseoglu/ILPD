@@ -1,0 +1,29 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BarkodLPD", "BarkodLPD\BarkodLPD.csproj", "{A817FD06-D6C2-4015-87C5-1E1D0D8A5D9D}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BarkodRFC", "BarkodRFC\BarkodRFC.csproj", "{0B216B38-16DE-4C78-B89B-C9FC0A609FA3}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{A817FD06-D6C2-4015-87C5-1E1D0D8A5D9D}.Debug.ActiveCfg = Debug|.NET
+		{A817FD06-D6C2-4015-87C5-1E1D0D8A5D9D}.Debug.Build.0 = Debug|.NET
+		{A817FD06-D6C2-4015-87C5-1E1D0D8A5D9D}.Release.ActiveCfg = Release|.NET
+		{A817FD06-D6C2-4015-87C5-1E1D0D8A5D9D}.Release.Build.0 = Release|.NET
+		{0B216B38-16DE-4C78-B89B-C9FC0A609FA3}.Debug.ActiveCfg = Debug|.NET
+		{0B216B38-16DE-4C78-B89B-C9FC0A609FA3}.Debug.Build.0 = Debug|.NET
+		{0B216B38-16DE-4C78-B89B-C9FC0A609FA3}.Release.ActiveCfg = Release|.NET
+		{0B216B38-16DE-4C78-B89B-C9FC0A609FA3}.Release.Build.0 = Release|.NET
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

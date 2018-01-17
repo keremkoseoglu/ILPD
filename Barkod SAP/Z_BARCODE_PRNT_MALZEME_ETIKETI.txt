@@ -1,0 +1,479 @@
+report z_malzeme_etiketi .
+
+include z_datamax_barcode_printer.
+
+tables : ekpo, ekko, eket, ekbe, eban, marc, lfa1, makt, mlgt.
+selection-screen begin of block b1 with frame title text-b01.
+select-options : s_lifnr for ekko-lifnr,
+                 s_eindt for eket-eindt,
+                 s_werks for ekpo-werks,
+                 s_ebeln for ekpo-ebeln,
+                 s_matnr for ekpo-matnr.
+selection-screen end of block b1.
+
+selection-screen begin of block b2 with frame title text-b02.
+parameter      : p_brkpr like zbcp-bcdpr obligatory
+                         matchcode object ZBCP.
+selection-screen end of block b2.
+
+data : lin(3) type i.
+controls : d_tablo type tableview using screen 100.
+data : d_flag.
+data : d_kalan like mseg-menge, ok_code like sy-ucomm.
+data : d_matnr like eban-matnr,
+       d_menge(10) type p decimals 3, " like eban-menge,
+       d_bumng(10) type p decimals 3, "  like eban-bumng,
+       d_adet(10) type p decimals 3,
+       d_lgort like ekpo-lgort,
+       d_testar like eket-eindt,
+       d_say(5) type i,
+       d_lifnr like eban-lifnr,
+       tarih(10).
+
+data : begin of iekpo occurs 0,
+        ebeln like ekpo-ebeln,
+        ebelp like ekpo-ebelp,
+        matnr like ekpo-matnr,
+        lifnr like ekko-lifnr,
+        lgort like ekpo-lgort,
+        eindt like eket-eindt,
+        menge like eket-menge,
+        wemng like eket-wemng,
+        bumng like eket-menge,
+        werks like ekpo-werks,
+end of iekpo.
+data begin of ieban occurs 0.
+        include structure eban.
+data end of ieban.
+
+data : begin of kint occurs 0,
+       matnr like ekpo-matnr,
+       lifnr like ekko-lifnr,
+       bumng like eket-menge,
+       bmenge like eban-menge,
+       adet like eban-menge,
+       werks like ekpo-werks,
+       lgort like ekpo-lgort,
+       eindt like eket-eindt,
+       sayi(4) type i,
+       flag,
+end of kint.
+data :  wmatnr like ekpo-matnr, e_adet(5) type i, mikt(7),
+        pmatnr(12), t_adet(7) type i, cevap, etiketsay(10),
+        text(24), text1(35), e_adeti(5) type p decimals 2.
+
+data : t_eadet like eban-menge, t_eadet1 like eban-menge,
+wlgpla like mlgt-lgpla.
+
+initialization.
+
+  select single * from zbcpu where bcdusr eq sy-uname.
+  if sy-subrc eq 0.
+    p_brkpr = zbcpu-bcdpr.
+  endif.
+
+at selection-screen.
+  select single * from zbcp where bcdpr eq p_brkpr.
+  if sy-subrc ne 0.
+    message e333(zm) with p_brkpr.
+  endif.
+
+start-of-selection.
+  clear iekpo. refresh iekpo.
+  select r~ebeln r~ebelp r~matnr p~lifnr r~lgort s~eindt s~menge
+               s~wemng r~werks
+         into
+(iekpo-ebeln, iekpo-ebelp, iekpo-matnr, iekpo-lifnr, iekpo-lgort,
+ iekpo-eindt, iekpo-menge, iekpo-wemng, iekpo-werks)
+        from ekko as p
+        inner join ekpo as r on r~ebeln = p~ebeln
+        inner join eket as s on s~ebeln = r~ebeln and
+                                s~ebelp = r~ebelp
+                         where p~bstyp = 'F'   and
+                               p~bukrs = '2010' and
+                               p~loekz = '' and
+                               p~lifnr in s_lifnr and
+                               r~loekz = '' and
+                               r~matnr in s_matnr and
+                               r~werks in s_werks and
+                               r~knttp = '' and
+                               s~eindt in s_eindt
+group by r~ebeln r~ebelp r~matnr p~lifnr r~lgort s~eindt s~menge
+         s~wemng r~werks.
+    collect iekpo.
+    clear iekpo.
+  endselect.
+
+  loop at iekpo.
+    if iekpo-menge <= iekpo-wemng.
+      delete iekpo.
+    else.
+      iekpo-bumng = iekpo-menge - iekpo-wemng.
+      modify iekpo.
+    endif.
+  endloop.
+
+  clear ieban. refresh ieban.
+  select * from eban appending corresponding fields of table ieban
+  where bsart = 'MP' and
+        bstyp = 'B' and
+        loekz = '' and
+        statu = 'N' and
+        matnr in s_matnr and
+        werks in s_werks and
+        lfdat in s_eindt and
+        flief in s_lifnr.
+  clear kint. refresh kint.
+  loop at iekpo.
+    move-corresponding iekpo to kint.
+    move iekpo-bumng to kint-adet.
+    on change of iekpo-ebeln or iekpo-matnr or iekpo-eindt.
+      add 1 to kint-sayi.
+    endon.
+    collect kint. clear kint.
+  endloop.
+  loop at ieban.
+    move-corresponding ieban to kint.
+    move ieban-menge to kint-bmenge.
+    move ieban-menge to kint-adet.
+    move ieban-lfdat to kint-eindt.
+    move ieban-flief to kint-lifnr.
+    move ieban-matnr to kint-matnr.
+    on change of ieban-banfn or ieban-matnr or ieban-lfdat.
+      add 1 to kint-sayi.
+    endon.
+    collect kint. clear kint.
+  endloop.
+
+  describe table kint lines lin.
+  sort kint by matnr eindt.
+  check lin > 0.
+  call screen 100.
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+module status_0100 output.
+  set pf-status 'ZGUI0100'.
+  set titlebar '100'.
+  clear ok_code.
+  describe table kint lines d_tablo-lines.
+endmodule.                 " STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  data_getir  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+module data_getir output.
+  d_matnr = kint-matnr.
+  d_menge = kint-bmenge.
+  d_bumng = kint-bumng.
+  d_lifnr = kint-lifnr.
+  d_adet = kint-adet.
+  d_flag = kint-flag.
+  d_lgort = kint-lgort.
+  d_testar = kint-eindt.
+  d_say = kint-sayi.
+endmodule.                 " data_getir  OUTPUT
+*&---------------------------------------------------------------------*
+*&      Module  data_yaz  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+module data_yaz input.
+  kint-eindt = d_testar.
+  kint-lgort = d_lgort.
+  kint-matnr = d_matnr.
+  kint-bmenge = d_menge.
+  kint-bumng = d_bumng.
+  kint-flag = d_flag.
+  kint-adet = d_adet.
+  kint-sayi = d_say.
+  modify kint index d_tablo-current_line.
+endmodule.                 " data_yaz  INPUT
+*&---------------------------------------------------------------------*
+*&      Module  user_command_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+module user_command_0100 input.
+  ok_code = sy-ucomm.
+  clear sy-ucomm.
+  case ok_code.
+    when 'BACK'.
+      set screen 0.
+      leave  screen.
+
+    when 'ALLSEL'.
+      loop at kint.
+        kint-flag = 'X'. modify kint.
+      endloop.
+
+    when 'ALLDEL'.
+      loop at kint.
+        kint-flag = ''. modify kint.
+      endloop.
+
+    when 'PRI'.
+      perform toplam_etiket_hesapla.
+      write t_adet to etiketsay.
+      if t_adet = 0.
+        message w330(zm).
+        exit.
+      endif.
+      text = 'Dökülecek Etiket Adedi: '.
+      concatenate text etiketsay into text1.
+      call function 'POPUP_TO_CONFIRM_STEP'
+           exporting
+                defaultoption = 'Y'
+                textline1     = text1
+                textline2     = text-001
+                titel         = ''
+           importing
+                answer        = cevap.
+      if cevap eq 'J'.
+        perform etiket_dok.
+      endif.
+  endcase.
+
+endmodule.                 " user_command_0100  INPUT
+*&---------------------------------------------------------------------*
+*&      Form  etiket_dok
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form etiket_dok.
+
+  perform r_open_form.
+
+  loop at kint where adet ne 0 and flag = 'X'.
+    wmatnr = ''.  e_adet = 0.  e_adeti = 0.
+    clear marc.
+    select single * from marc where matnr = kint-matnr and
+                                    werks = kint-werks.
+    if marc-bstrf = 0 or marc-bstrf = 1.
+      e_adet = kint-sayi.
+    else.
+      e_adeti = kint-adet / marc-bstrf.
+      e_adet = ceil( e_adeti ).
+    endif.
+
+    clear lfa1.
+    select single * from lfa1 where lifnr = kint-lifnr.
+
+    clear makt.
+    select single * from makt where spras = 'TR' and
+                                    matnr = kint-matnr.
+    pmatnr = kint-matnr+(12).
+    mikt = ''.
+    if marc-bstrf = 0 or marc-bstrf = 1.
+      write kint-adet  to mikt decimals 0.
+    endif.
+
+    t_eadet = kint-adet.  t_eadet1 = marc-bstrf.
+    do e_adet times.
+
+      if marc-bstrf > 1.
+        if t_eadet > marc-bstrf.
+          t_eadet1 = marc-bstrf.
+          t_eadet = t_eadet - marc-bstrf.
+        else.
+          t_eadet1 = t_eadet.
+        endif.
+        write t_eadet1  to mikt decimals 0.
+      endif.
+      clear mlgt. clear wlgpla.
+      select single lgpla from  mlgt into wlgpla
+             where  matnr  = kint-matnr
+             and    lgnum  = '001'
+             and    lvorm ne 'X'.
+
+      perform r_write_form.
+    enddo.
+  endloop.
+
+  perform send_to_barcode_print_server.
+
+endform.                    " etiket_dok
+
+*&---------------------------------------------------------------------*
+*&      Form  r_open_form
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form r_open_form.
+
+  select single * from zbcp where bcdpr eq p_brkpr.
+  print_spool_printer = zbcp-bcdpr.
+  print_spool_ip      = zbcp-bcdip.
+  print_spool_port    = zbcp-bcdport.
+  refresh: printer_commands.
+  perform set_printer_to_metric.
+  perform select_edge_sensor.
+
+endform.                    " r_open_form
+
+*---------------------------------------------------------------------*
+*       FORM r_write_form                                             *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form r_write_form.
+
+* START OF LABEL FORMAT
+  perform enter_label_formatting.
+  perform set_dot_size_width_and_height using '2' '2'.
+  perform enter_heat_setting using '25'.
+  perform draw_box using  '0050' '0060' '0890' '1200' '0003' '0003'.
+  perform draw_box using  '0080' '0460' '0030' '0030' '0002' '0002'.
+  perform draw_box using  '0120' '0460' '0030' '0030' '0002' '0002'.
+  perform draw_box using  '0080' '0710' '0030' '0030' '0002' '0002'.
+  perform draw_box using  '0120' '0710' '0030' '0030' '0002' '0002'.
+  perform draw_line using '0220' '0060' '0890' '0003'.
+  perform draw_line using '0350' '0060' '0890' '0003'.
+  perform draw_line using '0470' '0060' '0890' '0003'.
+  perform draw_line using '0600' '0060' '0890' '0003'.
+  perform draw_line using '0900' '0060' '0890' '0003'.
+  perform draw_line using '1030' '0060' '0890' '0003'.
+  perform draw_line using '0050' '0440' '0003' '0425'.
+
+** FIXED TEXTS
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '1220' '0170' 'SATICI ADI'.
+  perform label_line_format using
+          '1' '9' '1' '1' '000' '0945' '0090' 'MUSTERI ADI:'.
+  perform label_line_format using
+          '1' '9' '2' '2' '000' '0930' '0350' 'ANADOLU ISUZU'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0860' '0190' 'PARCA NO'.
+  perform label_line_format using
+          '1' '9' '1' '1' '000' '0515' '0080' 'PARCA ADI:'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0430' '0210' 'MIKTAR'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0310' '0100' 'LOT NO/URETIM TARIHI'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0180' '0130' 'SATICI URUN KODU'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0430' '0600' 'SEVK TARIHI'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0310' '0545' 'MUSTERI D.NO / ADRESI'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0180' '0600' 'SEVK NEDENI'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0080' '0510' 'NUMUNE'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0120' '0510' 'OZEL SIPARIS'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0080' '0760' 'SERI'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0120' '0760' 'SON SERI'.
+  perform label_line_format using
+          '1' '9' '1' '1' '300' '0010' '0700' 'F-UPK-001'.
+
+** VARIABLE TEXTS
+*** Satýcý Adý
+  write lfa1-name1 to line_data.
+  perform create_text_box using
+          line_data                       "   p_text
+          '1030'                          "   p_start_row
+          '0070'                          "   p_start_col
+          '0180'                          "   p_box_height
+          '0380'                          "   p_box_width
+          '0060'                          "   p_line_height
+          '9'                             "   p_font_id
+          '1'                             "   p_font_dot_width
+          '2'                             "   p_font_dot_height
+          '000'                           "   p_font_size
+          '15'.                           "   p_max_line_chars.
+*** Malzeme Tanýmý
+  line_data = makt-maktx.
+  perform create_text_box using
+          line_data                       "   p_text
+          '0465'                          "   p_start_row
+          '0280'                          "   p_start_col
+          '0120'                          "   p_box_height
+          '0380'                          "   p_box_width
+          '0060'                          "   p_line_height
+          '9'                             "   p_font_id
+          '1'                             "   p_font_dot_width
+          '2'                             "   p_font_dot_height
+          '000'                           "   p_font_size
+          '30'.                           "   p_max_line_chars.
+*** Malzeme Kodu
+  line_data = pmatnr.
+  perform label_line_format using
+          '1' '9' '1' '1' '002' '0830' '0380' line_data.
+*** Miktar
+  line_data = mikt.
+  perform label_line_format using
+          '1' '9' '1' '1' '003' '0350' '0100' line_data.
+*** Sevk Tarihi
+  write kint-eindt to tarih dd/mm/yyyy.
+  line_data = tarih.
+  perform label_line_format using
+          '1' '9' '1' '1' '003' '0350' '0510' line_data.
+*** Lot No / Üretim Tarihi
+*
+*
+*
+*** Depo No / Adresi
+  concatenate kint-lgort '/' wlgpla into line_data
+              separated by space.
+  perform label_line_format using
+          '1' '9' '1' '1' '003' '0220' '0490' line_data.
+*** Satýcý Ürün Kodu
+*
+*
+*
+
+** BARCODES
+*** Heat setting
+  perform enter_heat_setting using '30'.
+*** Satýcý Numarasý
+  write lfa1-lifnr to line_data no-zero.
+  perform label_line_format using
+          '1' 'A' '3' '1' '160' '1035' '0500' line_data.
+*** Malzeme Numarasý
+  line_data = pmatnr.
+  perform label_line_format using
+          '1' 'a' '3' '1' '200' '0620' '0230' line_data.
+
+  perform exit_label_formatting.
+* END OF LABEL FORMAT
+  perform print_last_label_format.
+  perform add_to_spool_tab.
+
+endform.                    " r_write_form
+*&---------------------------------------------------------------------*
+*&      Form  toplam_etiket_hesapla
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+form toplam_etiket_hesapla.
+  t_adet = 0.
+  loop at kint where adet ne 0 and flag = 'X'.
+    e_adet = 0.  e_adeti = 0.
+    clear marc.
+    select single * from marc where matnr = kint-matnr and
+                                    werks = kint-werks.
+    if marc-bstrf = 0 or marc-bstrf = 1.
+      e_adet = kint-sayi.
+    else.
+      e_adeti = kint-adet / marc-bstrf.
+      e_adet = ceil( e_adeti ).
+    endif.
+    t_adet = t_adet + e_adet.
+  endloop.
+
+endform.                    " toplam_etiket_hesapla

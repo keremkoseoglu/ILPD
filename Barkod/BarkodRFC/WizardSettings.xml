@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Settings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ClassName="BarkodRFC" TargetDirectory="D:\Development\IsuzuBarkod\Barkod\BarkodRFC" Namespace="BarkodRFC" Type="IFRMetaDataProvider" ToolsDir="C:\Program Files\SAP\SAP .NET Connector for VisualStudio 2003\" xmlns="http://tempuri.org/ProxyAppInput.xsd" />

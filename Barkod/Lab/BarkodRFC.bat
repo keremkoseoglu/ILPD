@@ -1,0 +1,1 @@
+BarkodRFC.exe -aBARKODRFC -gSAPIPDSV -xSAPGW00

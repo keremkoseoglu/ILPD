@@ -1,0 +1,15 @@
+		FileInfo	fi;
+		FileStream	fs;
+		byte[]		ByteArray;
+
+			fi = new FileInfo("D:\\Development\\IsuzuBarkod\\rd\\SendBinary\\bctest.txt");
+			fs = fi.OpenRead();
+
+			int nBytes	= 10000;
+			ByteArray	= new byte[nBytes];
+
+			txt.Text += " Veri okunuyor... ";
+
+			int nBytesRead = fs.Read(ByteArray, 0, nBytes);
+
+			txt.Text += " Veri okundu: " + nBytesRead.ToString() + " byte... ";

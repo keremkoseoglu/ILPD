@@ -1,0 +1,648 @@
+***INCLUDE Z_DATAMAX_BARCODE_PRINTER .
+
+tables: zbcp, zbcpu.
+
+constants: nullchar type x value '00',
+           soh type x value '01',
+           stx type x value '02',
+           cr  type x value '0D'.
+
+types: chr2(2) type c,
+       chr3(3) type c,
+       chr4(4) type c,
+       num2(2) type n,
+       num4(4) type n,
+       line_data(100) type c.
+
+data:  begin of printer_commands occurs 0,
+         line(132),
+       end of printer_commands.
+
+data:  form_name like rsscf-tdform value 'ZDATAMAX',
+       print_options like itcpo,
+       label_formatting,
+       print_spool_ident   type zbcd_ident,
+       print_spool_printer type zbcdpr,
+       print_spool_ip      type zbcdip,
+       print_spool_port    type zbcdport,
+       print_spool_data    type zbcd_print_commands,
+       line_data type line_data.
+
+data: begin of print_spool_data_tab occurs 0,
+       spool_data type zbcd_print_commands,
+      end of print_spool_data_tab.
+
+data:  data_stream(9999) type c.
+
+*---------------------------------------------------------------------*
+*       FORM reset_printer                                            *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form reset_printer.
+
+  refresh: printer_commands.
+  clear  : printer_commands.
+  concatenate soh '#' cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM set_printer_to_metric                                    *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form set_printer_to_metric.
+
+  clear: printer_commands.
+  concatenate stx 'm' cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM set_printer_to_inches                                    *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form set_printer_to_inches.
+
+  clear: printer_commands.
+  concatenate stx 'n' cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM set_continuous_paper_length                              *
+*---------------------------------------------------------------------*
+*       Sürekli formda etiket boyutunu belirler.                      *
+*       Fakat etiket kenar sensörünü devre dýþý býrakýr               *
+*       Metric --> p_length ~ mm / 10                                 *
+*       Inch   --> p_length ~ inch / 100                              *
+*---------------------------------------------------------------------*
+*  -->  P_LENGTH(4)                                                   *
+*---------------------------------------------------------------------*
+form set_continuous_paper_length using p_length type chr4.
+
+  clear: printer_commands.
+  concatenate stx 'c' p_length cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM set_maximum_label_length                                 *
+*---------------------------------------------------------------------*
+*       Kaðýdýn bittiðini algýlamak için sürekli formu ne kadar       *
+*       sürmeye devam edeceði bildirilir.                             *
+*       Etiket boyunun 2.5 - 3 katý tavsiye edilir.                   *
+*       Metric --> p_length ~ mm / 10                                 *
+*       Inch   --> p_length ~ inch / 100                              *
+*---------------------------------------------------------------------*
+*  -->  P_LENGTH(4)                                                   *
+*---------------------------------------------------------------------*
+form set_maximum_label_length using p_length type chr4.
+
+  clear: printer_commands.
+  concatenate stx 'M' p_length cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM select_edge_sensor                                       *
+*---------------------------------------------------------------------*
+*       Etiket baþlangýç/bitiþ kenar sensörü                          *
+*---------------------------------------------------------------------*
+form select_edge_sensor.
+
+  clear: printer_commands.
+  concatenate stx 'e' cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM SELECT_FONT_SYMBOL_SET                                   *
+*---------------------------------------------------------------------*
+*       Sxx  --> Single byte symbol set                               *
+*       Uxx  --> Double byte symbol set                               *
+*---------------------------------------------------------------------*
+*  -->  P_SET                                                         *
+*---------------------------------------------------------------------*
+form select_font_symbol_set using p_set type chr3.
+
+  if label_formatting is initial.
+    clear: printer_commands.
+    concatenate stx 'y' p_set cr into printer_commands-line.
+    append printer_commands.
+  else.
+    clear: printer_commands.
+    concatenate 'y' p_set cr into printer_commands-line.
+    append printer_commands.
+  endif.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM set_start_of_print_position                              *
+*---------------------------------------------------------------------*
+*       Metric --> p_position ~ mm / 10                               *
+*       Inch   --> p_position ~ inch / 100                            *
+*---------------------------------------------------------------------*
+*  -->  P_POSITION(4)                                                 *
+*---------------------------------------------------------------------*
+form set_start_of_print_position using p_position type chr4.
+
+  clear: printer_commands.
+  concatenate stx 'O' p_position cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM set_form_stop_position                                   *
+*---------------------------------------------------------------------*
+*       Metric --> p_position ~ mm / 10                               *
+*       Inch   --> p_position ~ inch / 100                            *
+*---------------------------------------------------------------------*
+*  -->  P_POSITION                                                    *
+*---------------------------------------------------------------------*
+form set_form_stop_position using p_position type chr4.
+
+  clear: printer_commands.
+  concatenate stx 'f' p_position cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM set_label_quantity                                       *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+*  -->  P_QUANTITY(4)                                                 *
+*---------------------------------------------------------------------*
+form set_label_quantity using p_quantity type chr4.
+
+  clear: printer_commands.
+  concatenate stx 'E' p_quantity cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+
+*---------------------------------------------------------------------*
+*       FORM enter_label_formatting                                   *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form enter_label_formatting.
+
+  clear: printer_commands.
+  concatenate stx 'L' cr into printer_commands-line.
+  append printer_commands.
+  label_formatting = 'X'.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM SET_DOT_SIZE_WIDTH_AND_HEIGHT                            *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+*       Metric --> p_width, plenght ~ mm / 10                         *
+*       Inch   --> p_width, plenght ~ inch / 100                      *
+*  -->  P_WIDTH                                                       *
+*  -->  P_HEIGHT                                                      *
+*---------------------------------------------------------------------*
+form set_dot_size_width_and_height using p_width  type c
+                                         p_height type c.
+  clear: printer_commands.
+  concatenate 'D' p_width p_height cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM ENTER_HEAT_SETTING                                       *
+*---------------------------------------------------------------------*
+*       Heat Setting ~ 0 - 30                                         *
+*---------------------------------------------------------------------*
+*  -->  P_HEAT                                                        *
+*---------------------------------------------------------------------*
+form enter_heat_setting using p_heat type chr2.
+
+  clear: printer_commands.
+  concatenate 'H' p_heat cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM exit_label_formatting                                    *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form exit_label_formatting.
+
+  clear: printer_commands.
+  concatenate 'X' cr into printer_commands-line.
+  append printer_commands.
+  clear: label_formatting.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM print_last_label_format                                  *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form print_last_label_format.
+
+  clear: printer_commands.
+  concatenate stx 'G' cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM label_line_format                                        *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+*  -->  ORIENTATION       --> 1-4                                     *
+*  -->  FONT_ID           --> 0-9, A-Z, a-z                           *
+*  -->  WIDTH             --> Width multiplier 1-9, A-O               *
+*  -->  HEIGHT            --> Height multipler 1-9, A-O               *
+*  -->  FONTSIZE          --> 000-999,U00-U9Z,S00-S9Z,u00-u9z,s00-s9z *
+*  -->  ROW_POSITION(4)   --> 0000-9999                               *
+*  -->  COLUMN_POSITION(4)--> 0000-9999                               *
+*  -->  LINE_DATA(200)    --> Data                                    *
+*---------------------------------------------------------------------*
+form label_line_format using orientation type c
+                             font_id type c
+                             width type c
+                             height type c
+                             fontsize type chr3
+                             row_position type chr4
+                             column_position type chr4
+                             line_data type line_data.
+
+* Orientation :  1 - 0   derece
+*                2 - 90  derece
+*                3 - 180 derece
+*                4 - 270 derece
+* Font id     :  0-9 Font
+*                A-T Okunabilir metinli barkod
+*                a-z Metinsiz barkod
+  data: temp_text type line_data.
+
+  temp_text = line_data.
+  perform replace_turkish_characters changing temp_text.
+
+  clear: printer_commands.
+  concatenate orientation font_id width height fontsize
+              row_position column_position temp_text cr
+              into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM draw_line                                                *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+*  -->  P_ROW         --> Starting Raw                                *
+*  -->  P_COL         --> Starting Column                             *
+*  -->  P_LENGTH      --> Length                                      *
+*  -->  P_WIDTH       --> Width (Thickness)                           *
+*---------------------------------------------------------------------*
+form draw_line using p_row    type chr4
+                     p_col    type chr4
+                     p_length type chr4
+                     p_width  type chr4.
+
+  clear: printer_commands.
+  concatenate '1X11000' p_row p_col 'l' p_length p_width
+               into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM draw_box                                                 *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+*  -->  P_ROW       --> Starting Raw                                  *
+*  -->  P_COL       --> Starting Column                               *
+*  -->  P_WIDTH     --> Width                                         *
+*  -->  P_HEIGHT    --> Height                                        *
+*  -->  P_THICKBT   --> Thickness of bottom and top box edges         *
+*  -->  P_THICKS    --> Thickness of sides                            *
+*---------------------------------------------------------------------*
+form draw_box using p_row     type chr4
+                    p_col     type chr4
+                    p_width   type chr4
+                    p_height  type chr4
+                    p_thickbt type chr4
+                    p_thicks  type chr4.
+
+  clear: printer_commands.
+  concatenate '1X11000' p_row     p_col 'b'
+                        p_width   p_height
+                        p_thickbt p_thicks
+               into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+
+*---------------------------------------------------------------------*
+*       FORM set_format_attribute                                     *
+*---------------------------------------------------------------------*
+*       1 - XOR Mode                                                  *
+*       2 - Transparent Mode                                          *
+*       3 - Opaque Mode                                               *
+*       4 - Inverse Mode                                              *
+*---------------------------------------------------------------------*
+*  -->  P_FORMAT_ATTRIBUTE                                            *
+*---------------------------------------------------------------------*
+form set_format_attribute using p_format_attribute type c.
+
+  clear: printer_commands.
+  concatenate 'A' p_format_attribute cr into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM barcode_magnification                                    *
+*---------------------------------------------------------------------*
+*       p_magnifiation ~ 00-99                                        *
+*---------------------------------------------------------------------*
+*  -->  P_MAGNIFICATION                                               *
+*---------------------------------------------------------------------*
+form barcode_magnification using p_magnification type chr2.
+
+  clear: printer_commands.
+  concatenate 'B' p_magnification into printer_commands-line.
+  append printer_commands.
+
+endform.
+
+
+
+*---------------------------------------------------------------------*
+*       FORM create_text_box                                          *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+*  -->  P_TEXT                                                        *
+*  -->  P_START_ROW                                                   *
+*  -->  P_START_COL                                                   *
+*  -->  P_BOX_HEIGHT                                                  *
+*  -->  P_BOX_WIDTH                                                   *
+*  -->  P_LINE_HEIGHT                                                 *
+*  -->  P_FONT_ID                                                     *
+*  -->  P_FONT_DOT_WIDTH                                              *
+*  -->  P_FONT_DOT_HEIGHT                                             *
+*  -->  P_FONT_SIZE                                                   *
+*  -->  P_MAX_LINE_CHAR                                               *
+*---------------------------------------------------------------------*
+form create_text_box using p_text            type line_data
+                           p_start_row       type num4
+                           p_start_col       type num4
+                           p_box_height      type num4
+                           p_box_width       type num4
+                           p_line_height     type num4
+                           p_font_id         type c
+                           p_font_dot_width  type c
+                           p_font_dot_height type c
+                           p_font_size       type chr3
+                           p_max_line_chars  type num2.
+
+  data: text_length     type i,
+        pos             type i,
+        line_row        type num4,
+        temp_text       type line_data,
+        start_row       type chr4,
+        start_col       type chr4,
+        line_count      type i.
+  data: begin of text_lines occurs 0,
+          line type line_data,
+        end of text_lines.
+  data: begin of words occurs 0,
+          word type line_data,
+        end of words.
+
+  temp_text = p_text.
+
+
+  perform replace_turkish_characters changing temp_text.
+
+  condense temp_text.
+  text_length = strlen( temp_text ).
+  refresh: text_lines, words.
+  clear  : text_lines, words.
+  if text_length > p_max_line_chars.
+    pos = 0.
+    clear words.
+    while pos < text_length.
+      if temp_text+pos(1) eq space.
+        if words-word ne space.
+          append words.
+          clear words.
+        endif.
+      else.
+        concatenate words-word temp_text+pos(1) into words-word.
+      endif.
+      pos = pos + 1.
+    endwhile.
+    if words-word ne space.
+      append words.
+    endif.
+
+    clear text_lines.
+    loop at words.
+      text_length = strlen( text_lines-line ) +
+                    strlen( words-word ) + 1.
+      if text_length > p_max_line_chars.
+        if not text_lines-line is initial.
+          append text_lines.
+          clear text_lines.
+        endif.
+        text_length = strlen( words-word ).
+        if text_length > p_max_line_chars.
+          temp_text = words-word.
+          while temp_text ne space.
+            text_length = strlen( temp_text ).
+            if text_length > p_max_line_chars.
+              text_lines-line = temp_text(p_max_line_chars).
+              shift temp_text by p_max_line_chars places.
+              append text_lines.
+              clear text_lines.
+            else.
+              text_lines-line = temp_text(text_length).
+              clear temp_text.
+            endif.
+          endwhile.
+        else.
+          concatenate text_lines-line words-word into text_lines-line
+                      separated by space.
+          condense text_lines-line.
+        endif.
+      else.
+        concatenate text_lines-line words-word into text_lines-line
+                    separated by space.
+        condense text_lines-line.
+      endif.
+    endloop.
+    if text_lines-line ne space.
+      append text_lines.
+      clear text_lines.
+    endif.
+  else.
+    text_lines-line = temp_text.
+    append text_lines.
+    clear text_lines.
+  endif.
+
+  describe table text_lines lines line_count.
+
+  line_row = p_start_row + p_box_height -
+             ( p_box_height - ( line_count * p_line_height ) ) / 2
+             - p_line_height.
+
+  write p_start_col to start_col.
+  loop at text_lines.
+
+    write line_row to start_row.
+    clear: printer_commands.
+    concatenate '1' p_font_id p_font_dot_width p_font_dot_height
+                p_font_size start_row start_col text_lines-line cr
+                into printer_commands-line.
+    append printer_commands.
+
+    line_row = line_row - p_line_height.
+
+  endloop.
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM add_to_spool_tab                                         *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form add_to_spool_tab.
+
+  data: line_count like sy-tabix,
+        len type i.
+
+  clear: print_spool_data, print_spool_ident.
+  print_spool_ident = sy-uname.
+  loop at printer_commands.
+    concatenate print_spool_data printer_commands-line
+                into print_spool_data.
+  endloop.
+  refresh: printer_commands.
+  clear  : printer_commands.
+
+  describe table print_spool_data_tab lines line_count.
+  if line_count = 0.
+    clear print_spool_data_tab.
+    move print_spool_data to print_spool_data_tab-spool_data.
+    append print_spool_data_tab.
+  else.
+    read table print_spool_data_tab index line_count.
+    len = strlen( print_spool_data_tab-spool_data ) +
+          strlen( print_spool_data ).
+    if len > 9999.
+      clear print_spool_data_tab.
+      move print_spool_data to print_spool_data_tab-spool_data.
+      append print_spool_data_tab.
+    else.
+      concatenate print_spool_data_tab-spool_data print_spool_data
+                  into print_spool_data_tab-spool_data.
+      modify print_spool_data_tab index line_count.
+    endif.
+  endif.
+
+endform.
+
+*---------------------------------------------------------------------*
+*       FORM send_to_barcode_print_server                             *
+*---------------------------------------------------------------------*
+*       ........                                                      *
+*---------------------------------------------------------------------*
+form send_to_barcode_print_server.
+
+  loop at print_spool_data_tab.
+
+    call function 'Z_DATAMAX_PRINT'
+         destination 'ZBARCODE_RFC'
+         exporting
+              ident          = print_spool_ident
+              ip             = print_spool_ip
+              port           = print_spool_port
+              print_commands = print_spool_data_tab-spool_data
+         exceptions
+              system_failure = 1
+              communication_failure = 2.
+     if sy-subrc eq 1.
+       message i331(zm).
+       exit.
+     elseif sy-subrc eq 2.
+       message i332(zm).
+       exit.
+     endif.
+
+  endloop.
+
+  refresh: print_spool_data_tab.
+  clear  : print_spool_data_tab.
+
+endform.
+*&---------------------------------------------------------------------*
+*&      Form  replace_turkish_characters
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_TEMP_TEXT  text
+*----------------------------------------------------------------------*
+form replace_turkish_characters changing p_temp_text.
+
+  constants: search_chars(12) value 'ÜÐÝÞÇÖüðýþçö',
+             replace_chars(12) value 'UGISCOugisco'.
+  data: subrc like sy-subrc,
+        pos like sy-fdpos,
+        len type i,
+        text_pos like sy-fdpos,
+        search_character,
+        replace_character.
+
+  len = strlen( p_temp_text ).
+  clear text_pos.
+  do len times.
+
+    clear pos.
+    do 12 times.
+
+      search_character  = search_chars+pos(1).
+      replace_character = replace_chars+pos(1).
+      if p_temp_text+text_pos(1) = search_character.
+        p_temp_text+text_pos(1) = replace_character.
+        exit.
+      endif.
+      pos = pos + 1.
+
+    enddo.
+    text_pos = text_pos + 1.
+
+  enddo.
+
+endform.                    " replace_turkish_characters

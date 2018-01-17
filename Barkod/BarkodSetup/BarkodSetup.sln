@@ -1,0 +1,21 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "BarkodSetup", "BarkodSetup.vdproj", "{139D6474-1649-4831-8B5D-DACFE4D331D6}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{139D6474-1649-4831-8B5D-DACFE4D331D6}.Debug.ActiveCfg = Debug
+		{139D6474-1649-4831-8B5D-DACFE4D331D6}.Debug.Build.0 = Debug
+		{139D6474-1649-4831-8B5D-DACFE4D331D6}.Release.ActiveCfg = Release
+		{139D6474-1649-4831-8B5D-DACFE4D331D6}.Release.Build.0 = Release
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal
